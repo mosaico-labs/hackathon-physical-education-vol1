@@ -1,0 +1,46 @@
+[project]
+name = "hackathon-physical-education-vol1"
+version = "0.1.0"
+description = "Starter kit: record SO-101 demos with LeRobot, share them through Mosaico, train a policy."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "lerobot[feetech,dataset,training,viz]>=0.7",
+]
+
+[project.scripts]
+starter = "starter.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.8,<1"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "starter"
+
+[tool.uv]
+# mosaicolabs pins av 17, but lerobot needs av.option (removed in av 17); the SDK only uses the decode API.
+override-dependencies = ["av>=16,<17"]
+
+[tool.uv.sources]
+# The LeRobot bridge is not on PyPI yet: point vendor/mosaico-sdk-py at a local checkout
+# of mosaico-sdk-py with `just link-sdk /path/to/mosaico-sdk-py` (done by `just setup`).
+mosaicolabs = { path = "vendor/mosaico-sdk-py", editable = true }
+
+[dependency-groups]
+# cloud machine only: the Mosaico SDK, installed by `just cloud-setup`
+cloud = ["mosaicolabs[cli]"]
+dev = [
+    "debugpy>=1.8.22",
+    "pytest>=8.4",
+    "ruff>=0.15",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

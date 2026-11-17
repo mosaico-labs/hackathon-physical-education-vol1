@@ -20,4 +20,4 @@ The SO-101 arms connect over USB: on Linux, add yourself to the `dialout` group
 |----------|----------------|
 | git, uv, just | same commands as above |
 | NVIDIA driver and CUDA | already installed on the hackathon machines (check with `nvidia-smi`) |
-| Mosaico SDK (`mosaico-sdk-py`) | already at `/home/ubuntu/workspace/mosaico/mosaico-sdk-py` on the hackathon machines |
+| `mosaico` CLI and the Mosaico LeRobot bridge (`mosaicolabs.lerobot_injector`, `mosaicolabs.lerobot_extractor`) | already installed on the hackathon machines (check with `mosaico --help`) |

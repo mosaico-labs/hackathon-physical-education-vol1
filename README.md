@@ -15,8 +15,12 @@ You work on two computers:
 Nothing here uses Hugging Face: datasets stay in the `data/` folder, trained policies in
 `outputs/`, and the commands run LeRobot in offline mode, so it never contacts the Hugging Face Hub.
 
-Every command in this guide is a `just` command, run from the repo folder. Run `just` on its own
-to list them all. First install the software listed in [PREREQUISITES.md](PREREQUISITES.md).
+The repo has one folder per computer: **`laptop/`** and **`cloud/`**. Each has its own `justfile`
+and `.env`, so on each computer you only see the commands that make sense there. Every command in
+this guide is a `just` command, run from that folder; run `just` on its own to list them. The
+commands are thin shortcuts over [LeRobot](https://huggingface.co/docs/lerobot) and the `mosaico`
+CLI: use those directly whenever you need more. First install the software listed in
+[PREREQUISITES.md](PREREQUISITES.md).
 
 > [!IMPORTANT]
 > **Images must be saved inside the dataset's parquet files, not as MP4 videos.** Mosaico can't
@@ -65,12 +69,12 @@ the same name to copy files.
 
 ```bash
 git clone https://github.com/mosaico-labs/hackathon-physical-education-vol1.git
-cd hackathon-physical-education-vol1
-just local-setup
+cd hackathon-physical-education-vol1/laptop
+just setup
 ```
 
-This installs everything in a local `.venv` and creates a `.env` file. Open `.env` and set
-`TEAM` to your team name (it must be unique: it's how your recordings are told apart in Mosaico).
+This installs LeRobot in a local `.venv` and creates a `.env` file, which you fill in in the next
+step. All the laptop commands below run from the `laptop/` folder.
 
 ### 3. Prepare the arms
 
@@ -140,16 +144,21 @@ Open a shell on it from your laptop with `ssh hackathon`.
 
 ```bash
 git clone https://github.com/mosaico-labs/hackathon-physical-education-vol1.git
-cd hackathon-physical-education-vol1
-just cloud-setup
+cd hackathon-physical-education-vol1/cloud
+just setup
 ```
 
-Open `.env`, set `TEAM` to the same team name as on your laptop, and `MOSAICO_HOST` to the
-Mosaico address given by the organisers. Check that Mosaico answers:
+This installs LeRobot (for training) in a local `.venv` and creates a `.env` file. Mosaico is used
+through the `mosaico` CLI that is already installed on the machine. Open `.env`, set `TEAM` to
+your team name (it must be unique: it's how your recordings are told apart in Mosaico) and
+`MOSAICO_HOST` to the Mosaico address given by the organisers. Then save that address as your
+`mosaico` profile and check that Mosaico answers:
 
 ```bash
-just ping
+just connect
 ```
+
+All the cloud commands below run from the `cloud/` folder.
 
 ### 2. Share your recordings on Mosaico
 
@@ -165,18 +174,19 @@ would be sent without sending it.
 
 ### 3. Get recordings from Mosaico
 
-Mosaico holds the recordings of every team. You can look for what you need and rebuild a LeRobot
-dataset from it, mixing your recordings with other teams':
+Mosaico holds the recordings of every team. Browse them with the `mosaico` CLI, then rebuild a
+LeRobot dataset from the ones you want, mixing your recordings with other teams':
 
 ```bash
-just sequences                                  # every sequence in Mosaico
-just sequences --name "team-07_*"              # only team-07's
-just sequences --task "Pick up*" --details      # by task, with size and tags
-just extract picks --task "Pick up*"            # rebuild them as a dataset in data/picks
+mosaico sequence ls                                   # every sequence in Mosaico
+mosaico sequence ls --locator "team-07_*"             # only team-07's
+mosaico sequence ls -m team=team-07 -m dataset=pick   # by the metadata `just push` adds
+mosaico sequence stat team-07_pick_episode_000000     # details of one sequence
+just extract picks --locator "team-07_pick_*"         # rebuild them as a dataset in data/picks
 ```
 
-How you choose, mix and look at the data is up to you. To go further than these commands, see
-[Writing your own code](#writing-your-own-code).
+`just extract` takes the same filters as `mosaico sequence ls`. Run `mosaico --help` to see
+everything the CLI can do.
 
 ### 4. Train a policy
 
@@ -191,20 +201,10 @@ with `tmux attach -t train`.
 
 When it's done, go back to your laptop and [bring the policy back](#6-bring-back-a-trained-policy-and-run-it).
 
-## Writing your own code
+## Going further
 
-`src/starter/` holds a few Python helpers to search Mosaico and rebuild datasets (cloud machine only):
-
-```python
-from starter.mosaico import connect, find_sequences, export_lerobot
-
-with connect() as client:
-    names = find_sequences(client, task="Pick up*", meta=[("team", "team-0*")])
-export_lerobot(names, "data/my_mix", overwrite=True)
-```
-
-`src/starter/examples/query_sequences.py` shows a query written directly with the Mosaico SDK;
-run it with `uv run python -m starter.examples.query_sequences`.
-
-To learn more about Mosaico, see [mosaico.dev](https://mosaico.dev). The Mosaico server used in
-this hackathon is [`mosaicod`](https://github.com/mosaico-labs/mosaicod).
+The `just` commands only fill in the options for this setup. Run the tools directly for anything
+else: `mosaico --help`, `mosaicolabs.lerobot_injector --help`, `mosaicolabs.lerobot_extractor --help`
+and the LeRobot `lerobot-*` commands (`uv run lerobot-train --help`). To learn more about Mosaico,
+see [mosaico.dev](https://mosaico.dev). The Mosaico server used in this hackathon is
+[`mosaicod`](https://github.com/mosaico-labs/mosaicod).

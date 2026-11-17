@@ -1,0 +1,60 @@
+# Cloud machine: share recordings through Mosaico and train policies with LeRobot.
+# Mosaico is used through the `mosaico` CLI already installed on this machine.
+# Run `just` to list the commands. See ../README.md.
+
+set dotenv-load
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# never contact the Hugging Face Hub: datasets and models stay on this computer
+export HF_HUB_OFFLINE := "1"
+
+team := env("TEAM", "")
+mosaico_host := env("MOSAICO_HOST", "mosaico.hackathon.internal")
+mosaico_port := env("MOSAICO_PORT", "6726")
+_api_key := env("MOSAICO_API_KEY", "")
+# the mosaico CLI reads its server address from here
+export MOSAICO_DAEMON_URL := mosaico_host + ":" + mosaico_port
+device := env("DEVICE", "cuda")
+_conn := "--host " + mosaico_host + " --port " + mosaico_port
+# LeRobot wants a dataset id; "local/<name>" is just a label, the data lives in data/<name>
+_repo := "--dataset.repo_id=local/"
+
+default:
+    @just --list --unsorted
+
+# install LeRobot in .venv and create .env
+setup:
+    @command -v mosaico >/dev/null || (echo "The mosaico CLI is not installed on this machine: ask the organisers." && exit 1)
+    @test -f .env || (cp .env.example .env && echo "Created .env: open it and fill it in, then run: just connect")
+    uv sync
+
+# save the Mosaico address from .env as the default `mosaico` profile and check it answers
+connect:
+    mosaico profile add hackathon --no-interactive --default --force \
+        --host {{ mosaico_host }} --port {{ mosaico_port }} {{ if _api_key != "" { "--api-key " + _api_key } else { "" } }}
+    mosaico sequence ls --limit 1
+
+# send data/<name> to Mosaico as <TEAM>_<name>_episode_NNNNNN: just push pick [--dry-run]
+push name *args: (_check-parquet "data/" + name)
+    @test -n "{{ team }}" -a "{{ team }}" != "change-me" || (echo "Set TEAM in .env first." && exit 1)
+    mosaicolabs.lerobot_injector "data/{{ name }}" --name "{{ team }}_{{ name }}" \
+        --metadata {{ quote('{"team": "' + team + '", "dataset": "' + name + '"}') }} \
+        {{ _conn }} {{ if _api_key != "" { "--api-key " + _api_key } else { "" } }} {{ args }}
+
+# rebuild data/<name> from the sequences matching `mosaico sequence ls` filters: just extract picks --locator 'team-07_pick_*'
+[positional-arguments]
+extract name +filters:
+    shift; names=$(mosaico sequence ls -o csv "$@" | grep -v '^No sequences found' | cut -d, -f1); \
+    test -n "$names" || (echo "No sequence matches: $*" && exit 1); \
+    mosaicolabs.lerobot_extractor $names --lerobot_path "data/{{ name }}" {{ _conn }} \
+        {{ if _api_key != "" { "--mosaico_api_key " + _api_key } else { "" } }}
+
+# train a policy on data/<name>, saved in outputs/train/<name>_<policy>: just train pick act 20000
+train name policy="act" steps="20000" *args:
+    uv run lerobot-train {{ _repo }}{{ name }} --dataset.root="data/{{ name }}" \
+        --policy.type={{ policy }} --policy.device={{ device }} --policy.push_to_hub=false \
+        --steps={{ steps }} --output_dir=outputs/train/{{ name }}_{{ policy }} {{ args }}
+
+# Mosaico can't read MP4 videos: refuse a dataset whose images aren't stored in its parquet files
+_check-parquet dir:
+    @python3 -c 'import json,sys; d=sys.argv[1]; f=json.load(open(d+"/meta/info.json"))["features"]; v=[k for k,x in f.items() if x.get("dtype")=="video"]; sys.exit(f"{d} stores {v} as MP4 video, which Mosaico cannot read: re-record with just record") if v else print(f"{d}: images stored in parquet")' "{{ dir }}"

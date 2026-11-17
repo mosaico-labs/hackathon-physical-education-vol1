@@ -1,0 +1,11 @@
+[project]
+name = "hackathon-cloud"
+version = "0.1.0"
+description = "Cloud side: train LeRobot policies. Mosaico is used through the mosaico CLI installed on the machine."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "lerobot[dataset,training]>=0.7",
+]
+
+[tool.uv]
+package = false

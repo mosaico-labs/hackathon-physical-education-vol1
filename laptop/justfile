@@ -1,0 +1,74 @@
+# Laptop: record demonstrations with LeRobot, send them to the cloud machine, run trained policies.
+# Run `just` to list the commands. See ../README.md.
+
+set dotenv-load
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+# never contact the Hugging Face Hub: datasets and models stay on this computer
+export HF_HUB_OFFLINE := "1"
+
+cloud := env("CLOUD_HOST", "hackathon")
+cloud_dir := env("CLOUD_DIR", "hackathon-physical-education-vol1/cloud")
+cameras := env("CAMERAS", "{ front: {type: opencv, index_or_path: 0, width: 640, height: 480, fps: 30} }")
+_robot := "--robot.type=so101_follower --robot.port=" + env("FOLLOWER_PORT", "/dev/ttyACM0") + " --robot.id=" + env("FOLLOWER_ID", "follower")
+_teleop := "--teleop.type=so101_leader --teleop.port=" + env("LEADER_PORT", "/dev/ttyACM1") + " --teleop.id=" + env("LEADER_ID", "leader")
+_cams := "--robot.cameras=" + quote(cameras)
+# LeRobot wants a dataset id; "local/<name>" is just a label, the data lives in data/<name>
+_repo := "--dataset.repo_id=local/"
+
+default:
+    @just --list --unsorted
+
+# install LeRobot in .venv and create .env
+setup:
+    @test -f .env || (cp .env.example .env && echo "Created .env: open it and fill it in.")
+    uv sync
+
+# find the USB port of each arm
+find-port:
+    uv run lerobot-find-port
+
+# list the connected cameras
+find-cameras:
+    uv run lerobot-find-cameras opencv
+
+# give the motors their ids (new arms only): just setup-motors follower|leader
+setup-motors who="follower":
+    uv run lerobot-setup-motors {{ if who == "leader" { _teleop } else { _robot } }}
+
+# calibrate an arm: just calibrate follower|leader
+calibrate who="follower":
+    uv run lerobot-calibrate {{ if who == "leader" { _teleop } else { _robot } }}
+
+# move the follower with the leader arm
+teleop:
+    uv run lerobot-teleoperate {{ _robot }} {{ _teleop }} {{ _cams }} --display_data=true
+
+# record episodes into data/<name>: just record pick "Pick up the red cube" 10
+record name task episodes="10" *args:
+    uv run lerobot-record {{ _robot }} {{ _teleop }} {{ _cams }} --display_data=true \
+        {{ _repo }}{{ name }} --dataset.root="data/{{ name }}" \
+        --dataset.single_task={{ quote(task) }} --dataset.num_episodes={{ episodes }} \
+        --dataset.video=false --dataset.no_stamp=true --dataset.push_to_hub=false {{ args }}
+
+# watch an episode of data/<name>
+viz name episode="0":
+    uv run lerobot-dataset-viz --repo-id local/{{ name }} --root "data/{{ name }}" --episode-index {{ episode }}
+
+# copy data/<name> to the cloud machine
+upload name: (_check-parquet "data/" + name)
+    rsync -az --progress "data/{{ name }}" "{{ cloud }}:{{ cloud_dir }}/data/"
+
+# copy a folder from the cloud machine into outputs/pulled/: just pull outputs/train/pick_act
+pull path:
+    mkdir -p outputs/pulled
+    rsync -az --progress "{{ cloud }}:{{ cloud_dir }}/{{ path }}" outputs/pulled/
+
+# run a trained policy on the arm: just rollout outputs/pulled/pick_act "Pick up the red cube"
+rollout run task:
+    uv run lerobot-rollout --strategy.type=base {{ _robot }} {{ _cams }} \
+        --policy.path="{{ run }}/checkpoints/last/pretrained_model" --task={{ quote(task) }}
+
+# Mosaico can't read MP4 videos: refuse a dataset whose images aren't stored in its parquet files
+_check-parquet dir:
+    @python3 -c 'import json,sys; d=sys.argv[1]; f=json.load(open(d+"/meta/info.json"))["features"]; v=[k for k,x in f.items() if x.get("dtype")=="video"]; sys.exit(f"{d} stores {v} as MP4 video, which Mosaico cannot read: re-record with just record") if v else print(f"{d}: images stored in parquet")' "{{ dir }}"

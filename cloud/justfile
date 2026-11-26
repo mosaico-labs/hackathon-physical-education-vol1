@@ -4,6 +4,8 @@
 
 set dotenv-load
 set shell := ["bash", "-euo", "pipefail", "-c"]
+# recipe arguments are also passed as $1, $2... (`just extract` needs it to keep filters quoted)
+set positional-arguments
 
 # never contact the Hugging Face Hub: datasets and models stay on this computer
 export HF_HUB_OFFLINE := "1"
@@ -42,7 +44,6 @@ push name *args: (_check-parquet "data/" + name)
         {{ _conn }} {{ if _api_key != "" { "--api-key " + _api_key } else { "" } }} {{ args }}
 
 # rebuild data/<name> from the sequences matching `mosaico sequence ls` filters: just extract picks --locator 'team-07_pick_*'
-[positional-arguments]
 extract name +filters:
     shift; names=$(mosaico sequence ls -o csv "$@" | grep -v '^No sequences found' | cut -d, -f1); \
     test -n "$names" || (echo "No sequence matches: $*" && exit 1); \
@@ -50,7 +51,7 @@ extract name +filters:
         {{ if _api_key != "" { "--mosaico_api_key " + _api_key } else { "" } }}
 
 # train a policy on data/<name>, saved in outputs/train/<name>_<policy>: just train pick act 20000
-train name policy="act" steps="20000" *args:
+train name policy="act" steps="20000" *args="":
     uv run lerobot-train {{ _repo }}{{ name }} --dataset.root="data/{{ name }}" \
         --policy.type={{ policy }} --policy.device={{ device }} --policy.push_to_hub=false \
         --steps={{ steps }} --output_dir=outputs/train/{{ name }}_{{ policy }} {{ args }}

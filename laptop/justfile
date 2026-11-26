@@ -45,7 +45,7 @@ teleop:
     uv run lerobot-teleoperate {{ _robot }} {{ _teleop }} {{ _cams }} --display_data=true
 
 # record episodes into data/<name>: just record pick "Pick up the red cube" 10
-record name task episodes="10" *args:
+record name task episodes="10" *args="":
     uv run lerobot-record {{ _robot }} {{ _teleop }} {{ _cams }} --display_data=true \
         {{ _repo }}{{ name }} --dataset.root="data/{{ name }}" \
         --dataset.single_task={{ quote(task) }} --dataset.num_episodes={{ episodes }} \

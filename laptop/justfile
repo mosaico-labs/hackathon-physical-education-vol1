@@ -33,8 +33,8 @@ find-cameras:
     uv run lerobot-find-cameras opencv
 
 # give the motors their ids (new arms only): just setup-motors follower|leader
-setup-motors who="follower":
-    uv run lerobot-setup-motors {{ if who == "leader" { _teleop } else { _robot } }}
+# setup-motors who="follower":
+#     uv run lerobot-setup-motors {{ if who == "leader" { _teleop } else { _robot } }}
 
 # calibrate an arm: just calibrate follower|leader
 calibrate who="follower":

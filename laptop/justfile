@@ -49,7 +49,7 @@ record name task episodes="10" *args="":
     uv run lerobot-record {{ _robot }} {{ _teleop }} {{ _cams }} --display_data=true \
         {{ _repo }}{{ name }} --dataset.root="data/{{ name }}" \
         --dataset.single_task={{ quote(task) }} --dataset.num_episodes={{ episodes }} \
-        --dataset.video=false --dataset.no_stamp=true --dataset.push_to_hub=false {{ args }}
+        --dataset.video=false --play_sounds=false --dataset.no_stamp=true --dataset.push_to_hub=false {{ args }}
 
 # watch an episode of data/<name>
 viz name episode="0":

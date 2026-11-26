@@ -34,11 +34,11 @@ find-cameras:
 
 # give the motors their ids (new arms only): just setup-motors follower|leader
 # setup-motors who="follower":
-#     uv run lerobot-setup-motors {{ if who == "leader" { _teleop } else { _robot } }}
+#     uv run lerobot-setup-motors {{ if who == "leader" { _teleop } else if who == "follower" { _robot } else { error("who must be follower or leader, got: " + who) } }}
 
 # calibrate an arm: just calibrate follower|leader
 calibrate who="follower":
-    uv run lerobot-calibrate {{ if who == "leader" { _teleop } else { _robot } }}
+    uv run lerobot-calibrate {{ if who == "leader" { _teleop } else if who == "follower" { _robot } else { error("who must be follower or leader, got: " + who) } }}
 
 # move the follower with the leader arm
 teleop:

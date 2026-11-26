@@ -88,8 +88,8 @@ just calibrate leader
 just teleop                  # move the leader and check that the follower follows
 ```
 
-Brand new arms that were never configured also need `just setup-motors follower` and
-`just setup-motors leader` before calibrating.
+<!-- Brand new arms that were never configured also need `just setup-motors follower` and
+`just setup-motors leader` before calibrating. -->
 
 ### 4. Record demonstrations
 

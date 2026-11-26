@@ -49,9 +49,9 @@ extract name +filters:
     test -n "$names" || (echo "No sequence matches: $*" && exit 1); \
     mosaicolabs.lerobot_extractor $names --lerobot-path outputs --name "{{ name }}" {{ _conn }}
 
-# train a policy on data/<name>, saved in outputs/train/<name>_<policy>: just train pick act 20000
+# train a policy on outputs/<name>, saved in outputs/train/<name>_<policy>: just train pick act 20000
 train name policy="act" steps="20000" *args="":
-    uv run lerobot-train {{ _repo }}{{ name }} --dataset.root="data/{{ name }}" \
+    uv run lerobot-train {{ _repo }}{{ name }} --dataset.root="outputs/{{ name }}" \
         --policy.type={{ policy }} --policy.device={{ device }} --policy.push_to_hub=false \
         --steps={{ steps }} --output_dir=outputs/train/{{ name }}_{{ policy }} {{ args }}
 

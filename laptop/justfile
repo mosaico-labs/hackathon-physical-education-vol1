@@ -64,6 +64,11 @@ pull path:
     mkdir -p outputs/pulled
     rsync -az --progress "{{ cloud }}:{{ cloud_dir }}/{{ path }}" outputs/pulled/
 
+# show the cloud machine's training dashboard at http://localhost:<port> (Ctrl-C to stop)
+dashboard port="7860":
+    @echo "Dashboard: http://localhost:{{ port }}"
+    ssh -t -L {{ port }}:127.0.0.1:7860 {{ cloud }} 'bash -lc "cd {{ cloud_dir }} && just dashboard"'
+
 # run a trained policy on the arm: just rollout outputs/pulled/pick_act "Pick up the red cube"
 rollout run task:
     uv run lerobot-rollout --strategy.type=base {{ _robot }} {{ _cams }} \

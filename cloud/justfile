@@ -11,6 +11,7 @@ set positional-arguments
 export HF_HUB_OFFLINE := "1"
 
 team := env("TEAM", "")
+_project := if team != "" { team } else { "hackathon" }
 mosaico_host := env("MOSAICO_HOST", "mosaico.hackathon.internal")
 mosaico_port := env("MOSAICO_PORT", "6726")
 _api_key := env("MOSAICO_API_KEY", "")
@@ -53,7 +54,13 @@ extract name +filters:
 train name policy="act" steps="20000" *args="":
     uv run lerobot-train {{ _repo }}{{ name }} --dataset.root="outputs/{{ name }}" \
         --policy.type={{ policy }} --policy.device={{ device }} --policy.push_to_hub=false \
-        --steps={{ steps }} --output_dir=outputs/train/{{ name }}_{{ policy }} {{ args }}
+        --steps={{ steps }} --output_dir=outputs/train/{{ name }}_{{ policy }} \
+        --trackio.enable=true --trackio.project={{ _project }} \
+        --trackio.run_name={{ name }}_{{ policy }} {{ args }}
+
+# serve the trackio dashboard of `just train` runs on port 7860 (view it from the laptop with `just dashboard`)
+dashboard:
+    uv run trackio show --project {{ _project }}
 
 # Mosaico can't read MP4 videos: refuse a dataset whose images aren't stored in its parquet files
 _check-parquet dir:

@@ -3,9 +3,15 @@ name = "hackathon-cloud"
 version = "0.1.0"
 description = "Cloud side: train LeRobot policies. Mosaico is used through the mosaico CLI installed on the machine."
 requires-python = ">=3.13,<3.14"
+
 dependencies = [
-    "lerobot[dataset,training]>=0.7",
+    "huggingface-hub>=1.9.0",
+    "lerobot[feetech,dataset,training,viz,smolvla]>=0.7",
+    "mosaicolabs[cli]>=0.9",
 ]
 
 [tool.uv]
+# mosaicolabs pins av 17, but lerobot needs av.option (removed in av 17); the SDK only uses the decode API.
+override-dependencies = ["av>=16,<17"]
+
 package = false

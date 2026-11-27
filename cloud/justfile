@@ -52,12 +52,16 @@ extract name +filters:
 
 # train a policy on outputs/<name>, saved in outputs/train/<name>_<policy>: just train pick act 20000
 train name policy="act" steps="20000" *args="":
+    env -u LD_LIBRARY_PATH \
     uv run lerobot-train {{ _repo }}{{ name }} --dataset.root="outputs/{{ name }}" \
         --policy.type={{ policy }} --policy.device={{ device }} --policy.push_to_hub=false \
         --steps={{ steps }} --output_dir=outputs/train/{{ name }}_{{ policy }} \
         --trackio.enable=true --trackio.project={{ _project }} \
-        --trackio.run_name={{ name }}_{{ policy }} {{ args }}
-
+        --trackio.run_name={{ name }}_{{ policy }} {{ args }} \
+        # --dataset.repo_id=local/my_dataset \
+        # --dataset.root="outputs/{{ name }}" \
+        # --dataset.streaming=true \
+        
 # serve the trackio dashboard of `just train` runs on port 7860 (view it from the laptop with `just dashboard`)
 dashboard:
     uv run trackio show --project {{ _project }}
